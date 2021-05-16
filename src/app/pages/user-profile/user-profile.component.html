@@ -1,4 +1,4 @@
-  <div class="app container mt-4">
+  <div class="app container mt-4 {{ ('direction' | translate) === 'rtl' ? 'rtl-custom' : ''}}">
     <h2 class="mb-3">👤 {{ 'ProfileText' | translate }}</h2>
 
     <div class="row">
@@ -12,7 +12,7 @@
         <div class="list-group">
           <span> {{ activeUser.display_name }} </span>
           <span> {{ activeUser.id }} </span>
-          <span> {{ activeUser.followers.total }} {{ 'FollowersText' | translate | lowercase }} </span>
+          <span> {{ activeUser.followers.total | numberLocale:this.translateService.currentLang }} {{ 'FollowersText' | translate | lowercase }} </span>
           <span> {{ activeUser.email }} </span>
           <span> {{ activeUser.country }} </span>
           <span> {{ activeUser.product }} </span>
