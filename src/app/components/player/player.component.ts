@@ -23,23 +23,33 @@ export class PlayerComponent extends SettingsBase implements OnInit, OnChanges {
         injector: Injector
     ) {
         super(injector);
-        const defaultLanguage = window.localStorage.getItem("languageSelected");
+        this.defaultLanguage = window.localStorage.getItem("languageSelected");
         translate.addLangs(["pt", "en", "es", "he"]);
-        translate.setDefaultLang(defaultLanguage || "pt");
+        translate.setDefaultLang(this.defaultLanguage || "pt");
     }
 
+    defaultLanguage: string;
     player: any;
     playerStatus: any;
     device_id: string;
     next_tracks: any[];
     previous_tracks: any[];
 
-    mostraPlayer = false;
-    mostraVolume = false;
+    showPlayer = false;
+    showVolume = false;
 
     progress = 0;
     shuffle = false;
     seekStyle = {};
+
+    trackTitle = "";
+    trackAlbum = "";
+    trackAuthor = "";
+    trackImage = "";
+    trackId = "";
+    albumId = "";
+    artistId = "";
+
 
     shufflemodeKey = "shuffle";
 
@@ -51,18 +61,18 @@ export class PlayerComponent extends SettingsBase implements OnInit, OnChanges {
 
             this.playerService.getPlayerProgress().subscribe((item) => {
                 this.progress = item;
-                const procentagem =
-                    (this.progress /
-                        (this.playerStatus?.item?.duration_ms || 0)) *
-                    100;
-                this.seekStyle = {
-                    background: `linear-gradient(to right, var(--spt-green) 0%, var(--spt-green) ${procentagem}%, #343a40 ${procentagem}%, #343a40 100%)`,
-                };
+                this.setProgressBar();
+            });
+
+            this.translate.onLangChange.subscribe(item => {
+                this.defaultLanguage = item.lang;
+                this.setProgressBar();
             });
 
             const shuffleStatusSaved = localStorage.getItem(
                 this.shufflemodeKey
             );
+
             if (shuffleStatusSaved === "true") {
                 this.toggleShuffle();
             }
@@ -73,13 +83,23 @@ export class PlayerComponent extends SettingsBase implements OnInit, OnChanges {
 
     ngOnChanges() {
         if (this.premium) {
-            this.transferirPlayer();
+            this.transferPlayer();
         }
+    }
+
+    setProgressBar() {
+        const progressPercentage =
+            (this.progress /
+                (this.playerStatus?.item?.duration_ms || 0)) *
+            100;
+        this.seekStyle = {
+            background: `linear-gradient(to ${this.defaultLanguage != 'he' ? 'right' : 'left'}, var(--spt-green) 0%, var(--spt-green) ${progressPercentage}%, #343a40 ${progressPercentage}%, #343a40 100%)`,
+        };
     }
 
     initPlayer() {
         (<any>window).onSpotifyWebPlaybackSDKReady = () => {
-            this.mostraPlayer = true;
+            this.showPlayer = true;
             const token = this.auth.getAuth();
 
             this.player = new Spotify.Player({
@@ -112,7 +132,7 @@ export class PlayerComponent extends SettingsBase implements OnInit, OnChanges {
             this.player.addListener("ready", ({ device_id }) => {
                 this.device_id = device_id;
                 this.playerService.setDeviceId(device_id);
-                this.transferirPlayer();
+                this.transferPlayer();
             });
 
             this.player.connect();
@@ -123,7 +143,7 @@ export class PlayerComponent extends SettingsBase implements OnInit, OnChanges {
         });
     }
 
-    transferirPlayer() {
+    transferPlayer() {
         this.playerService.transferPlayback(this.device_id).subscribe(() => {
             this.playerService.getCurrentState().subscribe((item) => {
                 this.playerStatus = item;
@@ -173,9 +193,37 @@ export class PlayerComponent extends SettingsBase implements OnInit, OnChanges {
         });
     }
 
+
+
     getCurrentState() {
         this.playerService.getCurrentState().subscribe((item) => {
             this.playerStatus = item;
+
+            if (this.playerStatus?.item.type == "track") {
+                this.trackTitle = this.playerStatus?.item.name;
+                this.trackAlbum = this.playerStatus?.item.album.name;
+                this.trackAuthor = this.playerStatus?.item.album.artists[0]?.name;
+                this.trackImage = this.playerStatus?.item.album.images[2].url;
+                this.trackId = this.playerStatus?.item.id;
+                this.albumId = 'album/' + this.playerStatus?.item.album.id;
+                this.artistId = 'artist/' + this.playerStatus?.item.album.artists[0]?.id;
+            } else if (this.playerStatus?.item.type == "episode") {
+                this.trackTitle = this.playerStatus?.item.name;
+                this.trackAlbum = this.playerStatus?.item.show.name;
+                this.trackAuthor = this.playerStatus?.item.show.publisher;;
+                this.trackImage = this.playerStatus?.item.images[2].url;
+                this.trackId = this.playerStatus?.item.id;
+                this.albumId = 'show/' + this.playerStatus?.item.show.id;
+                this.artistId = 'show/' + this.playerStatus?.item.show.id;
+            } else {
+                this.trackTitle = "";
+                this.trackAlbum = "";
+                this.trackAuthor = "";
+                this.trackImage = "";
+                this.trackId = "";
+                this.albumId = "";
+                this.artistId = "";
+            }
 
             this.playerService.setPlayerProgress(this.playerStatus.progress_ms);
             this.playerService.setPlayerStatus(this.playerStatus);
